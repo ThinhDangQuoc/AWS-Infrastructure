@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC with public and private subnets, IGW, NAT
+Parameters:
+VpcCidr:
+Type: String
+Default: 10.0.0.0/16
+PublicSubnetCidr:
+Type: String
+Default: 10.0.1.0/24
+PrivateSubnetCidr:
+Type: String
+Default: 10.0.2.0/24
+Resources:
+VPC:
+Type: AWS::EC2::VPC
+Properties:
+CidrBlock: !Ref VpcCidr
+Tags:
+- Key: Name
+Value: cf-vpc
+
+
+InternetGateway:
+Type: AWS::EC2::InternetGateway
+Properties:
+Tags:
+- Key: Name
+Value: cf-igw
+
+
+VPCGatewayAttachment:
+Type: AWS::EC2::VPCGatewayAttachment
+Properties:
+VpcId: !Ref VPC
+InternetGatewayId: !Ref InternetGateway
+
+
+PublicSubnet:
+Type: AWS::EC2::Subnet
+Properties:
+VpcId: !Ref VPC
+CidrBlock: !Ref PublicSu
