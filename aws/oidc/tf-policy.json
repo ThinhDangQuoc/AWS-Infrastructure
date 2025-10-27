@@ -1,0 +1,53 @@
+{
+  "Version":"2012-10-17",
+  "Statement":[
+    {
+      "Sid":"S3StateAccess",
+      "Effect":"Allow",
+      "Action":[
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:ListBucket"
+      ],
+      "Resource":[
+        "arn:aws:s3:::thinhdan905",
+        "arn:aws:s3:::thinhdan905/*"
+      ]
+    },
+    {
+      "Sid":"DDBLockAccess",
+      "Effect":"Allow",
+      "Action":[
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:UpdateItem"
+      ],
+      "Resource":"arn:aws:dynamodb:us-east-1:951976256425:table/terraform-lock-table"
+    }
+    // {
+    //   "Sid":"EC2AndNetworking",
+    //   "Effect":"Allow",
+    //   "Action":[
+    //     "ec2:Create*",
+    //     "ec2:Describe*",
+    //     "ec2:Delete*",
+    //     "ec2:Attach*",
+    //     "ec2:Modify*"
+    //   ],
+    //   "Resource":"*"
+    // },
+    // {
+    //   "Sid":"IAMPassRoleIfNeeded",
+    //   "Effect":"Allow",
+    //   "Action":"iam:PassRole",
+    //   "Resource":"arn:aws:iam::951976256425:role/SomeRoleIfCFNCreatesIt"
+    // },
+    // {
+    //   "Sid":"STSGetCaller",
+    //   "Effect":"Allow",
+    //   "Action":"sts:GetCallerIdentity",
+    //   "Resource":"*"
+    // }
+  ]
+}
