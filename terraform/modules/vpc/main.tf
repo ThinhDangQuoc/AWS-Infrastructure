@@ -90,3 +90,76 @@ resource "aws_security_group" "default_sg" {
   description = "Default security group for VPC"
   vpc_id      = aws_vpc.this.id
 }
+
+resource "aws_iam_role" "ec2_role" {
+  name = "ec2_role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Action = "sts:AssumeRole",
+      Effect = "Allow",
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "ec2_profile"
+  role = aws_iam_role.ec2_role.name
+}
+
+resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "/aws/vpc/flow-logs"
+  retention_in_days = 365   # giữ log ít nhất 1 năm
+  kms_key_id        = aws_kms_key.cloudwatch_key.arn  # mã hóa log
+}
+
+resource "aws_kms_key" "cloudwatch_key" {
+  description = "KMS key for CloudWatch logs encryption"
+}
+
+
+resource "aws_iam_role" "vpc_flow_logs_role" {
+  name = "vpc-flow-logs-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = {
+        Service = "vpc-flow-logs.amazonaws.com"
+      },
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
+  name = "vpc-flow-logs-policy"
+  role = aws_iam_role.vpc_flow_logs_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Action = [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams"
+      ],
+      "Resource": "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/vpc/flow-logs:*"
+    }]
+  })
+}
+
+resource "aws_flow_log" "vpc_flow_log" {
+  log_destination      = aws_cloudwatch_log_group.vpc_flow_logs.arn
+  log_destination_type = "cloud-watch-logs"
+  traffic_type         = "ALL"
+  vpc_id               = aws_vpc.this.id
+  iam_role_arn         = aws_iam_role.vpc_flow_logs_role.arn
+}
