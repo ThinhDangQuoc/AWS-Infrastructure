@@ -23,31 +23,31 @@
         "dynamodb:DeleteItem",
         "dynamodb:UpdateItem"
       ],
-      "Resource":"arn:aws:dynamodb:us-east-1:061430553632:table/terraform-lock-table"
-    },
-    {
-      "Sid":"EC2AndNetworking",
-      "Effect":"Allow",
-      "Action":[
-        "ec2:Create*",
-        "ec2:Describe*",
-        "ec2:Delete*",
-        "ec2:Attach*",
-        "ec2:Modify*"
-      ],
-      "Resource":"*"
-    },
-    {
-      "Sid":"IAMPassRoleIfNeeded",
-      "Effect":"Allow",
-      "Action":"iam:PassRole",
-      "Resource":"arn:aws:iam::951976256425:role/SomeRoleIfCFNCreatesIt"
-    },
-    {
-      "Sid":"STSGetCaller",
-      "Effect":"Allow",
-      "Action":"sts:GetCallerIdentity",
-      "Resource":"*"
+      "Resource":"arn:aws:dynamodb:us-east-1:951976256425:table/terraform-lock-table"
     }
+    // {
+    //   "Sid":"EC2AndNetworking",
+    //   "Effect":"Allow",
+    //   "Action":[
+    //     "ec2:Create*",
+    //     "ec2:Describe*",
+    //     "ec2:Delete*",
+    //     "ec2:Attach*",
+    //     "ec2:Modify*"
+    //   ],
+    //   "Resource":"*"
+    // },
+    // {
+    //   "Sid":"IAMPassRoleIfNeeded",
+    //   "Effect":"Allow",
+    //   "Action":"iam:PassRole",
+    //   "Resource":"arn:aws:iam::951976256425:role/SomeRoleIfCFNCreatesIt"
+    // },
+    // {
+    //   "Sid":"STSGetCaller",
+    //   "Effect":"Allow",
+    //   "Action":"sts:GetCallerIdentity",
+    //   "Resource":"*"
+    // }
   ]
 }
