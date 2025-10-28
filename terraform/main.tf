@@ -27,6 +27,7 @@ module "public_ec2" {
   security_group_id   = module.sg.public_sg_id
   key_name            = var.key_name
   associate_public_ip = true
+  allowed_ssh_cidr    = var.allowed_ssh_cidr
   role                = "public"
 }
 

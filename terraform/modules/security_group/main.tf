@@ -14,10 +14,15 @@ resource "aws_security_group" "public_ec2_sg" {
 
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow HTTPS outbound traffic"
+  }
+
+  tags = {
+    Name = "tf-public-ec2-sg"
   }
 }
 
@@ -38,9 +43,14 @@ resource "aws_security_group" "private_ec2_sg" {
 
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow outbound HTTPS only"
+  }
+
+  tags = {
+    Name = "tf-private-ec2-sg"
   }
 }
