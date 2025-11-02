@@ -23,11 +23,10 @@ module "public_ec2" {
   source              = "./modules/ec2"
   ami                 = var.public_instance_ami
   instance_type       = "t2.micro"
-  subnet_ids          = [element(module.vpc.public_subnets, 0)]
+  subnet_ids          = [element(module.vpc.public_subnet_ids, 0)]
   security_group_id   = module.sg.public_sg_id
   key_name            = var.key_name
   associate_public_ip = true
-  allowed_ssh_cidr    = var.allowed_ssh_cidr
   role                = "public"
 }
 
@@ -37,7 +36,7 @@ module "private_ec2" {
   source              = "./modules/ec2"
   ami                 = var.private_instance_ami
   instance_type       = "t2.micro"
-  subnet_ids          = [element(module.vpc.private_subnets, 0)]
+  subnet_ids          = [element(module.vpc.private_subnet_ids, 0)]
   security_group_id   = module.sg.private_sg_id
   key_name            = var.key_name
   associate_public_ip = false

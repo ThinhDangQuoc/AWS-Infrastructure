@@ -14,8 +14,19 @@ resource "aws_subnet" "public" {
   tags                    = { Name = "tf-public-${each.key}" }
 }
 
+# Private subnets
+resource "aws_subnet" "private" {
+  for_each                = toset(var.private_subnet_cidrs)
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = each.value
+  map_public_ip_on_launch = false
+  tags                    = { Name = "tf-private-${each.key}" }
+}
+
 # Elastic IP for NAT
 resource "aws_eip" "nat_eip" {
+  domain = "vpc"
+  tags = { Name = "nat-eip" }
 }
 
 
@@ -30,16 +41,6 @@ resource "aws_nat_gateway" "nat" {
   allocation_id = aws_eip.nat_eip.id
   subnet_id     = element(values(aws_subnet.public)[*].id, 0)
   tags          = { Name = "tf-nat" }
-}
-
-
-# Private subnets
-resource "aws_subnet" "private" {
-  for_each                = toset(var.private_subnet_cidrs)
-  vpc_id                  = aws_vpc.this.id
-  cidr_block              = each.value
-  map_public_ip_on_launch = false
-  tags                    = { Name = "tf-private-${each.key}" }
 }
 
 
@@ -64,6 +65,15 @@ resource "aws_route_table_association" "public_assoc" {
 }
 
 
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.this.id
+
+  ingress = []
+  egress  = []
+}
+
+
+
 resource "aws_route_table" "private_rt" {
   vpc_id = aws_vpc.this.id
   tags   = { Name = "tf-private-rt" }
@@ -84,13 +94,6 @@ resource "aws_route_table_association" "private_assoc" {
 }
 
 
-# Default Security Group placeholder
-resource "aws_security_group" "default_sg" {
-  name        = "tf-default-sg"
-  description = "Default security group for VPC"
-  vpc_id      = aws_vpc.this.id
-}
-
 resource "aws_iam_role" "ec2_role" {
   name = "ec2_role"
   assume_role_policy = jsonencode({
@@ -105,19 +108,130 @@ resource "aws_iam_role" "ec2_role" {
   })
 }
 
+
 resource "aws_iam_instance_profile" "ec2_profile" {
   name = "ec2_profile"
   role = aws_iam_role.ec2_role.name
 }
 
+
+# Create KMS Key for VPC Flow Logs and CloudWatch Logs
+resource "aws_kms_key" "logs_key" {
+  description             = "KMS key for encrypting VPC Flow Logs and CloudWatch Logs"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = {
+    Name = "tf-vpc-logs-key"
+  }
+}
+
+
+# Optional alias for easier reference
+resource "aws_kms_alias" "logs_key_alias" {
+  name          = "alias/vpc-logs-key"
+  target_key_id = aws_kms_key.logs_key.key_id
+}
+
+
+data "aws_caller_identity" "current" {}
+
+data "aws_region" "current" {}
+
+data "aws_iam_policy_document" "kms_policy" {
+  statement {
+    sid = "AllowRootAccountFullAccess"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "AllowCloudWatchLogsPut"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["logs.${data.aws_region.current.id}.amazonaws.com", "vpc-flow-logs.amazonaws.com"]
+    }
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ]
+    resources = [aws_kms_key.logs_key.arn]
+  }
+
+  statement {
+    sid = "AllowAccountAdmins"
+    effect = "Allow"
+    principals {
+      type = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions = [
+      "kms:DescribeKey",
+      "kms:EnableKeyRotation",
+      "kms:ListKeys",
+      "kms:UpdateKeyDescription"
+    ]
+    resources = [aws_kms_key.logs_key.arn]
+  }
+}
+
+# Create KMS key for CloudWatch and Flow Logs
+resource "aws_kms_key" "cloudwatch_key" {
+  description         = "KMS key for encrypting VPC Flow Logs and CloudWatch Logs"
+  enable_key_rotation = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "AllowRootAccountFullAccess"
+        Effect   = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid      = "AllowCloudWatchLogsUse"
+        Effect   = "Allow"
+        Principal = {
+          Service = [
+            "logs.${data.aws_region.current.name}.amazonaws.com",
+            "vpc-flow-logs.amazonaws.com"
+          ]
+        }
+        Action = [
+          "kms:Encrypt*",
+          "kms:Decrypt*",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = {
+    Name = "tf-cloudwatch-logs-key"
+  }
+}
+
+
 resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   name              = "/aws/vpc/flow-logs"
   retention_in_days = 365   # giữ log ít nhất 1 năm
   kms_key_id        = aws_kms_key.cloudwatch_key.arn  # mã hóa log
-}
 
-resource "aws_kms_key" "cloudwatch_key" {
-  description = "KMS key for CloudWatch logs encryption"
+   depends_on = [aws_kms_key.cloudwatch_key]
 }
 
 
