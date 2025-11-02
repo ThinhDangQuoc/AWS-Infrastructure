@@ -1,2 +1,1 @@
-# AWS-Infrastructure
-Terraform modules + CloudFormation templates
+# CloudFormation Infra

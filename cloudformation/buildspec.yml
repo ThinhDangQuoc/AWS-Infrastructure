@@ -1,0 +1,22 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+    commands:
+      - pip install cfn-lint taskcat
+  pre_build:
+    commands:
+      - echo "🔍 Running cfn-lint checks..."
+      - cfn-lint vpc.yaml
+      - cfn-lint ec2.yaml
+  build:
+    commands:
+      - echo "🧪 Running taskcat tests..."
+      - taskcat test run --template-file vpc.yaml --region us-east-1
+  post_build:
+    commands:
+      - echo "✅ Template linting and validation completed"
+artifacts:
+  files:
+    - '**/*'
