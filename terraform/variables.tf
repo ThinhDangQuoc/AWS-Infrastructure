@@ -4,6 +4,13 @@ variable "aws_region" {
 }
 
 
+variable "instance_type" {
+  type    = string
+  default = "t2.micro"
+}
+
+
+
 variable "vpc_cidr" {
   type    = string
   default = "10.0.0.0/16"
@@ -23,8 +30,7 @@ variable "private_subnet_cidrs" {
 
 
 variable "allowed_ssh_cidr" {
-  type    = string
-  default = "125.235.238.217/32" # change to your IP
+  type = string
 }
 
 

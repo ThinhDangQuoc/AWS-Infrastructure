@@ -39,6 +39,9 @@ resource "aws_iam_role" "ec2_role" {
       }
     ]
   })
+  tags = {
+    Name        = "tf-ec2-role-${var.role}"
+  }
 }
 
 # Optional: attach AmazonSSMManagedInstanceCore policy so you can use Session Manager
@@ -51,4 +54,8 @@ resource "aws_iam_role_policy_attachment" "ssm" {
 resource "aws_iam_instance_profile" "ec2_profile" {
   name = "tf-ec2-profile-${var.role}"
   role = aws_iam_role.ec2_role.name
+
+  tags = {
+    Name        = "tf-ec2-profile-${var.role}"
+  }
 }

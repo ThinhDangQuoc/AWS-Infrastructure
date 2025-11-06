@@ -22,12 +22,17 @@ module "sg" {
 module "public_ec2" {
   source              = "./modules/ec2"
   ami                 = var.public_instance_ami
-  instance_type       = "t2.micro"
+  instance_type       = var.instance_type
   subnet_ids          = [element(module.vpc.public_subnet_ids, 0)]
   security_group_id   = module.sg.public_sg_id
   key_name            = var.key_name
   associate_public_ip = true
   role                = "public"
+
+  depends_on = [
+    module.vpc,
+    module.sg
+  ]
 }
 
 
@@ -35,14 +40,15 @@ module "public_ec2" {
 module "private_ec2" {
   source              = "./modules/ec2"
   ami                 = var.private_instance_ami
-  instance_type       = "t2.micro"
+  instance_type       = var.instance_type
   subnet_ids          = [element(module.vpc.private_subnet_ids, 0)]
   security_group_id   = module.sg.private_sg_id
   key_name            = var.key_name
   associate_public_ip = false
   role                = "private"
+
+  depends_on = [
+    module.vpc,
+    module.sg
+  ]
 }
-
-
-output "public_instance_ip" { value = module.public_ec2.instance_ips }
-output "private_instance_ids" { value = module.private_ec2.instance_ids }
