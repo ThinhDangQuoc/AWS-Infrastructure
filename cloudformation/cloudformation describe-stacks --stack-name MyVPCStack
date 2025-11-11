@@ -1,0 +1,45 @@
+{
+    "Parameters": [
+        {
+            "ParameterKey": "PublicSubnetCIDR",
+            "DefaultValue": "10.0.1.0/24",
+            "NoEcho": false
+        },
+        {
+            "ParameterKey": "PrivateSubnetCIDR",
+            "DefaultValue": "10.0.2.0/24",
+            "NoEcho": false
+        },
+        {
+            "ParameterKey": "KeyPairName",
+            "NoEcho": false,
+            "Description": "T?n Key Pair ?? SSH v?o EC2"
+        },
+        {
+            "ParameterKey": "VPCCIDR",
+            "DefaultValue": "10.0.0.0/16",
+            "NoEcho": false
+        },
+        {
+            "ParameterKey": "MyIP",
+            "NoEcho": false,
+            "Description": "??a ch? IP c?a ng??i d?ng cho SSH, v? d?: 123.45.67.89/32"
+        },
+        {
+            "ParameterKey": "InstanceType",
+            "DefaultValue": "t2.micro",
+            "NoEcho": false
+        },
+        {
+            "ParameterKey": "AmiId",
+            "DefaultValue": "ami-0c55b159cbfafe1f0",
+            "NoEcho": false
+        }
+    ],
+    "Description": "CloudFormation Stack cho VPC c? Public/Private Subnet, NAT Gateway v? EC2 Instances",
+    "Capabilities": [
+        "CAPABILITY_NAMED_IAM",
+        "CAPABILITY_AUTO_EXPAND"
+    ],
+    "CapabilitiesReason": "The following resource(s) require capabilities: [AWS::CloudFormation::Stack]"
+}

@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "EC2 Instances trong Public và Private Subnets"
+
+Parameters:
+  VpcId:
+    Type: String
+  PublicSubnetId:
+    Type: String
+  PrivateSubnetId:
+    Type: String
+  DefaultSGId:
+    Type: String
+  PublicSGId:
+    Type: String
+  PrivateSGId:
+    Type: String
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+  AmiId:
+    Type: AWS::EC2::Image::Id
+  InstanceType:
+    Type: String
+
+Resources:
+  PublicInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref AmiId
+      SubnetId: !Ref PublicSubnetId
+      KeyName: !Ref KeyPairName
+      SecurityGroupIds:
+        - !Ref DefaultSGId
+        - !Ref PublicSGId
+      Tags:
+        - Key: Name
+          Value: PublicInstance
+
+  PrivateInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref AmiId
+      SubnetId: !Ref PrivateSubnetId
+      KeyName: !Ref KeyPairName
+      SecurityGroupIds:
+        - !Ref DefaultSGId
+        - !Ref PrivateSGId
+      Tags:
+        - Key: Name
+          Value: PrivateInstance

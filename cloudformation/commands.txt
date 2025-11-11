@@ -1,0 +1,45 @@
+aws cloudformation create-stack \
+  --stack-name MyVPCStack \
+  --template-url https://my-cloudformation-templates-thinhdan905.s3.amazonaws.com/main.yml \
+  --parameters file://parameters.json \
+  --capabilities CAPABILITY_NAMED_IAM
+
+
+aws cloudformation update-stack \
+  --stack-name MyVPCStack \
+  --template-body file://main.yml \
+  --parameters file://parameters.json \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation delete-stack --stack-name MyVPCStack --region us-east-1
+aws cloudformation delete-stack --stack-name VPCStack --region us-east-1
+
+aws s3 mb s3://my-cloudformation-templates-thinhdan905 --region us-east-1
+
+aws s3 cp main.yml s3://my-cloudformation-templates-thinhdan905/
+
+aws s3api put-bucket-policy \
+  --bucket my-cloudformation-templates-thinhdan905 \
+  --policy file://bucket-policy.json
+
+aws s3 cp modules/vpc.yml s3://my-cloudformation-templates-thinhdan905/
+aws s3 cp modules/subnet.yml s3://my-cloudformation-templates-thinhdan905/
+aws s3 cp modules/nat-gateway.yml s3://my-cloudformation-templates-thinhdan905/
+aws s3 cp modules/route-tables.yml s3://my-cloudformation-templates-thinhdan905/
+aws s3 cp modules/security-groups.yml s3://my-cloudformation-templates-thinhdan905/
+aws s3 cp modules/ec2.yml s3://my-cloudformation-templates-thinhdan905/
+aws s3 cp main.yml s3://my-cloudformation-templates-thinhdan905/
+
+aws cloudformation create-stack \
+  --stack-name MyVPCStack \
+  --template-url https://my-cloudformation-templates-thinhdan905.s3.amazonaws.com/main.yml \
+  --parameters file://parameters.json \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation update-stack \
+  --stack-name MyVPCStack \
+  --template-url https://my-cloudformation-templates-thinhdan905.s3.amazonaws.com/main.yml \
+  --parameters file://parameters.json \
+  --capabilities CAPABILITY_NAMED_IAM
+
+tests/test_cf.sh

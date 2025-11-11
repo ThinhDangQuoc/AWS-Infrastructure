@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Module tạo VPC và Internet Gateway"
+
+Parameters:
+  VPCCIDR:
+    Type: String
+
+Resources:
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCIDR
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: MyVPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: MyInternetGateway
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  DefaultSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Default Security Group for the VPC - allows internal communication"
+      VpcId: !Ref MyVPC
+      GroupName: DefaultSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0                               # Cho phép mọi outbound
+      Tags:
+        - Key: Name
+          Value: DefaultSecurityGroup
+
+  DefaultSGIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DefaultSecurityGroup
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref DefaultSecurityGroup
+      Description: "Allow all traffic within the Default Security Group"
+      
+Outputs:
+  VpcId:
+    Value: !Ref MyVPC
+  InternetGatewayId:
+    Value: !Ref InternetGateway
+  DefaultSGId:
+    Value: !Ref DefaultSecurityGroup

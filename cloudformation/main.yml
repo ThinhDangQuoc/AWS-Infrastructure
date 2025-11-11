@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation Stack cho VPC có Public/Private Subnet, NAT Gateway và EC2 Instances"
+
+Parameters:
+  VPCCIDR:
+    Type: String
+    Default: 10.0.0.0/16
+  PublicSubnetCIDR:
+    Type: String
+    Default: 10.0.1.0/24
+  PrivateSubnetCIDR:
+    Type: String
+    Default: 10.0.2.0/24
+  MyIP:
+    Type: String
+    Description: "Địa chỉ IP của người dùng cho SSH, ví dụ: 123.45.67.89/32"
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: "Tên Key Pair để SSH vào EC2"
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-0013bb317e8896fc8 # Amazon Linux 2 (ví dụ)
+  InstanceType:
+    Type: String
+    Default: t2.micro
+
+Resources:
+  VPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://my-cloudformation-templates-thinhdan905.s3.amazonaws.com/vpc.yml
+      Parameters:
+        VPCCIDR: !Ref VPCCIDR
+
+  SubnetStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://my-cloudformation-templates-thinhdan905.s3.amazonaws.com/subnet.yml
+      Parameters:
+        VpcId: !GetAtt VPCStack.Outputs.VpcId
+        PublicSubnetCIDR: !Ref PublicSubnetCIDR
+        PrivateSubnetCIDR: !Ref PrivateSubnetCIDR
+
+  RouteTableStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://my-cloudformation-templates-thinhdan905.s3.amazonaws.com/route-tables.yml
+      Parameters:
+        VpcId: !GetAtt VPCStack.Outputs.VpcId
+        PublicSubnetId: !GetAtt SubnetStack.Outputs.PublicSubnetId
+        PrivateSubnetId: !GetAtt SubnetStack.Outputs.PrivateSubnetId
+        InternetGatewayId: !GetAtt VPCStack.Outputs.InternetGatewayId
+        NatGatewayId: !GetAtt NatStack.Outputs.NatGatewayId
+
+  NatStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://my-cloudformation-templates-thinhdan905.s3.amazonaws.com/nat-gateway.yml
+      Parameters:
+        VpcId: !GetAtt VPCStack.Outputs.VpcId
+        PublicSubnetId: !GetAtt SubnetStack.Outputs.PublicSubnetId
+
+  SecurityGroupStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://my-cloudformation-templates-thinhdan905.s3.amazonaws.com/security-groups.yml
+      Parameters:
+        VpcId: !GetAtt VPCStack.Outputs.VpcId
+        MyIP: !Ref MyIP
+
+  EC2Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://my-cloudformation-templates-thinhdan905.s3.amazonaws.com/ec2.yml
+      Parameters:
+        VpcId: !GetAtt VPCStack.Outputs.VpcId
+        PublicSubnetId: !GetAtt SubnetStack.Outputs.PublicSubnetId
+        PrivateSubnetId: !GetAtt SubnetStack.Outputs.PrivateSubnetId
+        PublicSGId: !GetAtt SecurityGroupStack.Outputs.PublicSGId
+        PrivateSGId: !GetAtt SecurityGroupStack.Outputs.PrivateSGId
+        DefaultSGId: !GetAtt VPCStack.Outputs.DefaultSGId
+        KeyPairName: !Ref KeyPairName
+        AmiId: !Ref AmiId
+        InstanceType: !Ref InstanceType
