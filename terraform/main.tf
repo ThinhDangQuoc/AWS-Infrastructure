@@ -6,15 +6,28 @@ module "vpc" {
 }
 
 
+module "nat" {
+  source           = "./modules/nat_gateway"
+  public_subnet_ids = module.vpc.public_subnet_ids
+}
+
+
+module "route_tables" {
+  source              = "./modules/route_tables"
+  vpc_id              = module.vpc.vpc_id
+  internet_gateway_id = module.vpc.igw_id
+  nat_gateway_id      = module.nat.nat_id
+  public_subnet_ids   = [element(module.vpc.public_subnet_ids, 0)]
+  private_subnet_ids  = [element(module.vpc.private_subnet_ids, 0)]
+}
+
+
 # create security groups
 module "sg" {
-  source           = "./modules/security_group"
+  source           = "./modules/security_groups"
   vpc_id           = module.vpc.vpc_id
   allowed_ssh_cidr = var.allowed_ssh_cidr
   # public_sg_id left empty for creation flow; module outputs public and private IDs
-  allowed_from_port = 22
-  allowed_to_port   = 22
-  allowed_protocol  = "tcp"
 }
 
 

@@ -1,5 +1,9 @@
 aws_region           = "us-east-1"
+instance_type        = "t2.micro"
+vpc_cidr             = "10.0.0.0/16"
+public_subnet_cidrs  = ["10.0.1.0/24"]
+private_subnet_cidrs = ["10.0.2.0/24"]
 key_name             = "my-aws-keypair"
-public_instance_ami  = "ami-0360c520857e3138f" # example for us-east-1; change to your region
-private_instance_ami = "ami-0c94855ba95c71c99"
-allowed_ssh_cidr     = "203.0.113.12/32" # replace with your IP
+public_instance_ami  = "ami-002ccb478420d8d9c"
+private_instance_ami = "ami-002ccb478420d8d9c"
+allowed_ssh_cidr     = "203.0.113.12/32" # replace with your IP address

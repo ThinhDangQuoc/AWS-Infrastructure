@@ -10,6 +10,10 @@ output "private_subnet_ids" {
     value = values(aws_subnet.private)[*].id 
 }
 
-output "nat_id" { 
-    value = aws_nat_gateway.nat.id 
+output "igw_id" {
+  value = aws_internet_gateway.this.id
+}
+
+output "default_sg_id" {
+  value = aws_default_security_group.default.id
 }

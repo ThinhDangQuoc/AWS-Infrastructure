@@ -23,6 +23,7 @@ else
 fi
 
 # 2️⃣ TEST SUBNETS
+echo "-------------------------------------------"
 echo "🔍 Checking Subnets..."
 PUBLIC_SUBNET=$(aws ec2 describe-subnets \
   --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=tf-public-*" \
