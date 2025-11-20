@@ -16,7 +16,6 @@ pipeline {
     SONAR_PROJECT_KEY = 'microservices-monorepo'
     SONARQUBE_ENV     = 'SonarQubeServer'
     TRIVY_SEVERITY    = 'HIGH,CRITICAL'
-    SONAR_AUTH_TOKEN  = credentials('sonarqube-token')
   }
 
   options {
@@ -53,14 +52,12 @@ pipeline {
           ${scannerHome}/bin/sonar-scanner \
             -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
             -Dsonar.sources=services \
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-            -Dsonar.login=\$SONAR_AUTH_TOKEN
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
         """
       }
     }
   }
 }
-
 
     stage('Quality Gate') {
       steps {
