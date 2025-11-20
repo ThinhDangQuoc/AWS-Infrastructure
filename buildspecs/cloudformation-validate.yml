@@ -1,0 +1,28 @@
+version: 0.2
+env:
+  variables:
+    PACKAGED_TEMPLATE: packaged-template.yaml
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - pip install --upgrade awscli cfn-lint taskcat
+  pre_build:
+    commands:
+      - echo "Running cfn-lint on nested templates"
+      - cfn-lint cloudformation/main.yaml cloudformation/modules/*.yml
+  build:
+    commands:
+      - echo "Packaging templates to ${PACKAGED_TEMPLATE}"
+      - aws cloudformation package \
+          --template-file cloudformation/main.yaml \
+          --s3-bucket ${PACKAGE_BUCKET} \
+          --output-template-file ${PACKAGED_TEMPLATE}
+      - cfn-lint ${PACKAGED_TEMPLATE}
+      - echo "Executing Taskcat integration tests"
+      - taskcat test run -c taskcat.yml
+artifacts:
+  files:
+    - ${PACKAGED_TEMPLATE}
+  discard-paths: yes

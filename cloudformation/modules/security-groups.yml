@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Security groups for public bastion and private instance access
+Parameters:
+  VpcId:
+    Type: String
+  AllowedSshCidr:
+    Type: String
+    Default: 0.0.0.0/0
+Resources:
+  PublicEc2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH ingress from admin network
+      GroupName: cf-public-ec2-sg
+      SecurityGroupIngress:
+        - CidrIp: !Ref AllowedSshCidr
+          Description: SSH from allowed CIDR
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow HTTPS outbound traffic
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+        - CidrIp: 0.0.0.0/0
+          Description: Allow HTTP outbound traffic
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      Tags:
+        - Key: Name
+          Value: cf-public-ec2-sg
+      VpcId: !Ref VpcId
+
+  PrivateEc2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow internal access from public bastion
+      GroupName: cf-private-ec2-sg
+      SecurityGroupIngress:
+        - Description: SSH from bastion
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+          SourceSecurityGroupId: !Ref PublicEc2SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: HTTPS outbound only
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      Tags:
+        - Key: Name
+          Value: cf-private-ec2-sg
+      VpcId: !Ref VpcId
+
+Outputs:
+  PublicSecurityGroupId:
+    Description: ID of the public/bastion SG
+    Value: !Ref PublicEc2SecurityGroup
+  PrivateSecurityGroupId:
+    Description: ID of the private SG restricted to bastions
+    Value: !Ref PrivateEc2SecurityGroup

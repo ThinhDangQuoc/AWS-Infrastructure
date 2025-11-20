@@ -1,0 +1,20 @@
+{
+  "name": "@micro/orders-service",
+  "version": "1.0.0",
+  "description": "Orders microservice for CI/CD demos",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.1"
+  }
+}

@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Full AWS infrastructure (network, security, compute) via nested stacks
+
+Parameters:
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+
+  PublicSubnetCidrs:
+    Type: CommaDelimitedList
+    Default: 10.0.1.0/24,10.0.2.0/24
+
+  PrivateSubnetCidrs:
+    Type: CommaDelimitedList
+    Default: 10.0.11.0/24,10.0.12.0/24
+
+  AvailabilityZones:
+    Type: CommaDelimitedList
+    Description: Provide two AZs in the deployment region (e.g., us-east-1a,us-east-1b)
+
+  AllowedSshCidr:
+    Type: String
+    Default: 0.0.0.0/0
+
+  PublicInstanceAmi:
+    Type: AWS::EC2::Image::Id
+
+  PrivateInstanceAmi:
+    Type: AWS::EC2::Image::Id
+
+  InstanceType:
+    Type: String
+    Default: t3.micro
+
+  KeyName:
+    Type: String
+    Default: ''
+
+  # NEW – nơi chứa các template con trên S3
+  TemplateBucketName:
+    Type: String
+    Description: S3 bucket name that stores nested stack templates
+
+  TemplateKeyPrefix:
+    Type: String
+    Default: aws-infra-lab02
+    Description: S3 key prefix (folder) that stores nested stack templates
+
+Resources:
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${TemplateBucketName}.s3.${AWS::Region}.amazonaws.com/${TemplateKeyPrefix}/modules/vpc.yml"
+      Parameters:
+        VpcCidr: !Ref VpcCidr
+        PublicSubnetCidrs: !Join [",", !Ref PublicSubnetCidrs]
+        PrivateSubnetCidrs: !Join [",", !Ref PrivateSubnetCidrs]
+        AvailabilityZones: !Join [",", !Ref AvailabilityZones]
+
+  SecurityStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: NetworkStack
+    Properties:
+      TemplateURL: !Sub "https://${TemplateBucketName}.s3.${AWS::Region}.amazonaws.com/${TemplateKeyPrefix}/modules/security-groups.yml"
+      Parameters:
+        VpcId: !GetAtt NetworkStack.Outputs.VpcId
+        AllowedSshCidr: !Ref AllowedSshCidr
+
+  ComputeStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: SecurityStack
+    Properties:
+      TemplateURL: !Sub "https://${TemplateBucketName}.s3.${AWS::Region}.amazonaws.com/${TemplateKeyPrefix}/modules/ec2.yml"
+      Parameters:
+        PublicSubnetId: !Select [0, !Split [",", !GetAtt NetworkStack.Outputs.PublicSubnetIds]]
+        PrivateSubnetId: !Select [0, !Split [",", !GetAtt NetworkStack.Outputs.PrivateSubnetIds]]
+        PublicSecurityGroupId: !GetAtt SecurityStack.Outputs.PublicSecurityGroupId
+        PrivateSecurityGroupId: !GetAtt SecurityStack.Outputs.PrivateSecurityGroupId
+        PublicInstanceAmi: !Ref PublicInstanceAmi
+        PrivateInstanceAmi: !Ref PrivateInstanceAmi
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyName
+
+
+Outputs:
+  VpcId:
+    Value: !GetAtt NetworkStack.Outputs.VpcId
+
+  PublicSubnetIds:
+    Value: !GetAtt NetworkStack.Outputs.PublicSubnetIds
+
+  PrivateSubnetIds:
+    Value: !GetAtt NetworkStack.Outputs.PrivateSubnetIds
+
+  PublicSecurityGroupId:
+    Value: !GetAtt SecurityStack.Outputs.PublicSecurityGroupId
+
+  PrivateSecurityGroupId:
+    Value: !GetAtt SecurityStack.Outputs.PrivateSecurityGroupId
+
+  PublicInstanceId:
+    Value: !GetAtt ComputeStack.Outputs.PublicInstanceId
+
+  PrivateInstanceId:
+    Value: !GetAtt ComputeStack.Outputs.PrivateInstanceId
+
+  PublicInstancePublicIp:
+    Value: !GetAtt ComputeStack.Outputs.PublicInstancePublicIp

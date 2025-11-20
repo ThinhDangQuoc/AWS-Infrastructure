@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+nameSuffix: -prod
+namespace: microservices-prod
+commonLabels:
+  env: production
+  app.kubernetes.io/environment: prod
+resources:
+  - ../../base
+images:
+  - name: 123456789012.dkr.ecr.us-east-1.amazonaws.com/orders
+    newTag: latest
+  - name: 123456789012.dkr.ecr.us-east-1.amazonaws.com/payments
+    newTag: latest
+  - name: 123456789012.dkr.ecr.us-east-1.amazonaws.com/users
+    newTag: latest
+patchesStrategicMerge:
+  - patches/deployments.yaml

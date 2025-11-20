@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Public bastion host and private workload EC2 instances
+Parameters:
+  PublicSubnetId:
+    Type: String
+  PrivateSubnetId:
+    Type: String
+  PublicSecurityGroupId:
+    Type: String
+  PrivateSecurityGroupId:
+    Type: String
+  PublicInstanceAmi:
+    Type: AWS::EC2::Image::Id
+  PrivateInstanceAmi:
+    Type: AWS::EC2::Image::Id
+  InstanceType:
+    Type: String
+    Default: t3.micro
+  KeyName:
+    Type: String
+    Default: ''
+
+Conditions:
+  HasKeyPair: !Not [!Equals [!Ref KeyName, '']]
+Resources:
+  PublicInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref PublicInstanceAmi
+      InstanceType: !Ref InstanceType
+      KeyName: !If [HasKeyPair, !Ref KeyName, !Ref AWS::NoValue]
+      SecurityGroupIds:
+        - !Ref PublicSecurityGroupId
+      SubnetId: !Ref PublicSubnetId
+      Tags:
+        - Key: Name
+          Value: cf-public-bastion
+      UserData: !Base64 |
+        #!/bin/bash
+        yum update -y
+        yum install -y amazon-ssm-agent
+        systemctl enable amazon-ssm-agent
+        systemctl start amazon-ssm-agent
+
+  PrivateInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref PrivateInstanceAmi
+      InstanceType: !Ref InstanceType
+      KeyName: !If [HasKeyPair, !Ref KeyName, !Ref AWS::NoValue]
+      SecurityGroupIds:
+        - !Ref PrivateSecurityGroupId
+      SubnetId: !Ref PrivateSubnetId
+      Tags:
+        - Key: Name
+          Value: cf-private-app
+
+Outputs:
+  PublicInstanceId:
+    Value: !Ref PublicInstance
+  PrivateInstanceId:
+    Value: !Ref PrivateInstance
+  PublicInstancePublicIp:
+    Value: !GetAtt PublicInstance.PublicIp

@@ -1,0 +1,22 @@
+project:
+  name: aws-infra-lab02
+  regions:
+    - us-east-1
+
+tests:
+  lab02-main:
+    template: cloudformation/main.yaml
+    regions:
+      - us-east-1
+    parameters:
+      VpcCidr: 10.0.0.0/16
+      PublicSubnetCidrs: 10.0.1.0/24,10.0.2.0/24
+      PrivateSubnetCidrs: 10.0.11.0/24,10.0.12.0/24
+      AvailabilityZones: us-east-1a,us-east-1b
+      AllowedSshCidr: 0.0.0.0/0
+      PublicInstanceAmi: ami-0c94855ba95c71c99      
+      PrivateInstanceAmi: ami-0c94855ba95c71c99     
+      InstanceType: t3.micro
+      KeyName: ""                                  
+      TemplateBucketName: "$[taskcat_bucket_name]"
+      TemplateKeyPrefix: "aws-infra-lab02"
