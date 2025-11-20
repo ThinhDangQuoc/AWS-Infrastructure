@@ -1,6 +1,9 @@
 // Jenkins pipeline that builds/tests microservices, runs quality gates, and deploys to Kubernetes
+
+// 1) Khai báo danh sách services dùng chung
 def services = ['orders', 'payments', 'users']
 
+// 2) Hàm helper để lặp qua từng service
 def runForServices(closure) {
   services.each { svc ->
     closure(svc)
@@ -9,17 +12,20 @@ def runForServices(closure) {
 
 pipeline {
   agent any
+
   environment {
-    AWS_REGION       = 'us-east-1'
-    DOCKER_REGISTRY  = '123456789012.dkr.ecr.us-east-1.amazonaws.com'
+    AWS_REGION        = 'us-east-1'
+    DOCKER_REGISTRY   = '123456789012.dkr.ecr.us-east-1.amazonaws.com'
     SONAR_PROJECT_KEY = 'microservices-monorepo'
     SONARQUBE_ENV     = 'SonarQubeServer'
     TRIVY_SEVERITY    = 'HIGH,CRITICAL'
   }
+
   options {
     skipDefaultCheckout(false)
     timestamps()
   }
+
   stages {
     stage('Checkout') {
       steps {
@@ -43,7 +49,10 @@ pipeline {
     stage('SonarQube Scan') {
       steps {
         withSonarQubeEnv(env.SONARQUBE_ENV) {
-          sh "sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.sources=services -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info"
+          sh "sonar-scanner " +
+             "-Dsonar.projectKey=${SONAR_PROJECT_KEY} " +
+             "-Dsonar.sources=services " +
+             "-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info"
         }
       }
     }
@@ -72,7 +81,8 @@ pipeline {
 
     stage('Container Security (Trivy)') {
       steps {
-        sh 'trivy fs --exit-code 1 --severity ${TRIVY_SEVERITY} --skip-dirs .git .' 
+        // Dùng double-quote để biến TRIVY_SEVERITY được expand
+        sh "trivy fs --exit-code 1 --severity ${TRIVY_SEVERITY} --skip-dirs .git ."
       }
     }
 
@@ -82,7 +92,7 @@ pipeline {
       }
       steps {
         withAWS(region: env.AWS_REGION, credentials: 'aws-ecr-creds') {
-          sh 'aws ecr get-login-password | docker login --username AWS --password-stdin ${DOCKER_REGISTRY}'
+          sh "aws ecr get-login-password | docker login --username AWS --password-stdin ${DOCKER_REGISTRY}"
         }
         script {
           runForServices { svc ->
@@ -98,9 +108,12 @@ pipeline {
         branch 'main'
       }
       steps {
-        withCredentials([kubeconfigFile(credentialsId: 'kubeconfig')]) {
-          sh 'kubectl config use-context microservices'
-          sh 'kubectl apply -k k8s/overlays/prod'
+        // Dùng credential loại Secret file với ID = 'kubeconfig'
+        withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+          sh '''
+            kubectl config use-context microservices
+            kubectl apply -k k8s/overlays/prod
+          '''
         }
       }
     }
@@ -112,7 +125,10 @@ pipeline {
       archiveArtifacts artifacts: 'services/*/coverage/**/*', allowEmptyArchive: true
     }
     failure {
-      mail to: 'devops@example.com', subject: "${env.JOB_NAME} #${env.BUILD_NUMBER} failed", body: "Check Jenkins for details."
+      // Nếu không có SMTP thì có thể comment block mail này lại
+      mail to: 'devops@example.com',
+           subject: "${env.JOB_NAME} #${env.BUILD_NUMBER} failed",
+           body: "Check Jenkins for details: ${env.BUILD_URL}"
     }
   }
 }
