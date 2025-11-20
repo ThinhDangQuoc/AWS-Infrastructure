@@ -16,6 +16,7 @@ pipeline {
     SONAR_PROJECT_KEY = 'microservices-monorepo'
     SONARQUBE_ENV     = 'SonarQubeServer'
     TRIVY_SEVERITY    = 'HIGH,CRITICAL'
+    SONAR_AUTH_TOKEN  = credentials('sonarqube-token')
   }
 
   options {
@@ -43,22 +44,23 @@ pipeline {
       }
     }
 
-    stage('SonarQube Scan') {
-      steps {
-        withSonarQubeEnv(env.SONARQUBE_ENV) {
-          script {
-            // Lấy đường dẫn cài đặt sonar-scanner từ Jenkins tool
-            def scannerHome = tool 'SonarScanner'
-            sh """
-              ${scannerHome}/bin/sonar-scanner \
-                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                -Dsonar.sources=services \
-                -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            """
-          }
-        }
+  stage('SonarQube Scan') {
+  steps {
+    withSonarQubeEnv(env.SONARQUBE_ENV) {
+      script {
+        def scannerHome = tool 'SonarScanner'
+        sh """
+          ${scannerHome}/bin/sonar-scanner \
+            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+            -Dsonar.sources=services \
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+            -Dsonar.login=${SONAR_AUTH_TOKEN}
+        """
       }
     }
+  }
+}
+
 
 
     stage('Quality Gate') {
