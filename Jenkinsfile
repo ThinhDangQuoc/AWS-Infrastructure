@@ -46,15 +46,20 @@ pipeline {
     stage('SonarQube Scan') {
       steps {
         withSonarQubeEnv(env.SONARQUBE_ENV) {
-          sh """
-            sonar-scanner \
-              -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-              -Dsonar.sources=services \
-              -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-          """
+          script {
+            // Lấy đường dẫn cài đặt sonar-scanner từ Jenkins tool
+            def scannerHome = tool 'SonarScanner'
+            sh """
+              ${scannerHome}/bin/sonar-scanner \
+                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                -Dsonar.sources=services \
+                -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            """
+          }
         }
       }
     }
+
 
     stage('Quality Gate') {
       steps {
