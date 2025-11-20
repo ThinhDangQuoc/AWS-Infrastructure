@@ -1,11 +1,8 @@
 // Jenkins pipeline that builds/tests microservices, runs quality gates, and deploys to Kubernetes
 
-// 1) Khai báo danh sách services dùng chung
-def services = ['orders', 'payments', 'users']
-
-// 2) Hàm helper để lặp qua từng service
+// Helper: chạy lặp cho 3 service
 def runForServices(closure) {
-  services.each { svc ->
+  ['orders', 'payments', 'users'].each { svc ->
     closure(svc)
   }
 }
@@ -49,10 +46,12 @@ pipeline {
     stage('SonarQube Scan') {
       steps {
         withSonarQubeEnv(env.SONARQUBE_ENV) {
-          sh "sonar-scanner " +
-             "-Dsonar.projectKey=${SONAR_PROJECT_KEY} " +
-             "-Dsonar.sources=services " +
-             "-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info"
+          sh """
+            sonar-scanner \
+              -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+              -Dsonar.sources=services \
+              -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+          """
         }
       }
     }
@@ -81,7 +80,6 @@ pipeline {
 
     stage('Container Security (Trivy)') {
       steps {
-        // Dùng double-quote để biến TRIVY_SEVERITY được expand
         sh "trivy fs --exit-code 1 --severity ${TRIVY_SEVERITY} --skip-dirs .git ."
       }
     }
@@ -108,7 +106,6 @@ pipeline {
         branch 'main'
       }
       steps {
-        // Dùng credential loại Secret file với ID = 'kubeconfig'
         withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
           sh '''
             kubectl config use-context microservices
@@ -125,7 +122,7 @@ pipeline {
       archiveArtifacts artifacts: 'services/*/coverage/**/*', allowEmptyArchive: true
     }
     failure {
-      // Nếu không có SMTP thì có thể comment block mail này lại
+      // nếu không cần mail có thể comment block này
       mail to: 'devops@example.com',
            subject: "${env.JOB_NAME} #${env.BUILD_NUMBER} failed",
            body: "Check Jenkins for details: ${env.BUILD_URL}"
