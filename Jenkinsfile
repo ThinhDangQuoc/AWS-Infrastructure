@@ -44,7 +44,7 @@ pipeline {
       }
     }
 
-   stage('SonarQube Scan') {
+  stage('SonarQube Scan') {
   steps {
     withSonarQubeEnv(env.SONARQUBE_ENV) {
       script {
@@ -54,12 +54,13 @@ pipeline {
             -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
             -Dsonar.sources=services \
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-            -Dsonar.login=${env.SONAR_AUTH_TOKEN}
+            -Dsonar.login=\$SONAR_AUTH_TOKEN
         """
       }
     }
   }
 }
+
 
     stage('Quality Gate') {
       steps {
