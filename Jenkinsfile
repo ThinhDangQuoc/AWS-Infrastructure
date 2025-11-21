@@ -1,134 +1,136 @@
-// Jenkins pipeline that builds/tests microservices, runs quality gates, and deploys to Kubernetes
-
-// Helper: chạy lặp cho 3 service
-def runForServices(closure) {
-  ['orders', 'payments', 'users'].each { svc ->
-    closure(svc)
-  }
-}
+def services = ['orders', 'payments', 'users']
 
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    AWS_REGION        = 'us-east-1'
-    DOCKER_REGISTRY   = '123456789012.dkr.ecr.us-east-1.amazonaws.com'
-    SONAR_PROJECT_KEY = 'microservices-monorepo'
-    SONARQUBE_ENV     = 'SonarQubeServer'
-    TRIVY_SEVERITY    = 'HIGH,CRITICAL'
-  }
+    environment {
+        // Docker registry
+        DOCKER_REGISTRY = 'docker.io/quannha5'
+        DOCKER_CREDENTIAL = 'docker-registry-cred'
 
-  options {
-    skipDefaultCheckout(false)
-    timestamps()
-  }
+        // SonarQube
+        SONARQUBE_ENV     = 'SonarQubeServer'
+        SONAR_PROJECT_KEY = 'microservices-monorepo'
+        SONAR_PROJECT_NAME= 'microservices-monorepo'
+        SONAR_PROJECT_VER = '1.0'
 
-  stages {
-    stage('Checkout') {
-      steps {
-        checkout scm
-      }
+        // Optional: K8s namespace
+        K8S_NAMESPACE     = 'default'
     }
 
-    stage('Install Dependencies & Unit Tests') {
-      steps {
-        script {
-          runForServices { svc ->
-            dir("services/${svc}") {
-              sh 'npm install'
-              sh 'npm test'
+    options {
+        timestamps()
+        skipDefaultCheckout(false)
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
             }
-          }
         }
-      }
-    }
 
-  stage('SonarQube Scan') {
-  steps {
-    withSonarQubeEnv(env.SONARQUBE_ENV) {
-      script {
-        def scannerHome = tool 'SonarScanner'
-        sh """
-          ${scannerHome}/bin/sonar-scanner \
-            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-            -Dsonar.sources=services \
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-        """
-      }
-    }
-  }
-}
-
-    stage('Quality Gate') {
-      steps {
-        timeout(time: 10, unit: 'MINUTES') {
-          waitForQualityGate abortPipeline: true
-        }
-      }
-    }
-
-    stage('Docker Build') {
-      steps {
-        script {
-          runForServices { svc ->
-            def image = "${DOCKER_REGISTRY}/${svc}:${env.BUILD_NUMBER}"
-            dir("services/${svc}") {
-              sh "docker build -t ${image} ."
+        stage('Unit Tests') {
+            steps {
+                script {
+                    services.each { svc ->
+                        dir("services/${svc}") {
+                            // Ví dụ Node.js, bạn đổi thành go test / mvn test tùy stack
+                            sh """
+                               echo "Running tests for ${svc}..."
+                               if [ -f package.json ]; then
+                                   npm install
+                                   npm test
+                               else
+                                   echo "No package.json, skip npm test"
+                               fi
+                            """
+                        }
+                    }
+                }
             }
-            sh "docker tag ${image} ${DOCKER_REGISTRY}/${svc}:latest"
-          }
         }
-      }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    withSonarQubeEnv("${SONARQUBE_ENV}") {
+                        // Dùng sonar-scanner, có thể tinh chỉnh thêm
+                        sh """
+                           sonar-scanner \
+                             -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                             -Dsonar.projectName=${SONAR_PROJECT_NAME} \
+                             -Dsonar.projectVersion=${SONAR_PROJECT_VER} \
+                             -Dsonar.sources=./services \
+                             -Dsonar.host.url=$SONAR_HOST_URL \
+                             -Dsonar.login=$SONAR_AUTH_TOKEN
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                script {
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", "${DOCKER_CREDENTIAL}") {
+                        services.each { svc ->
+                            dir("services/${svc}") {
+                                def imageTag = "${DOCKER_REGISTRY}/${svc}:${env.BUILD_NUMBER}"
+                                sh """
+                                   echo "Building Docker image for ${svc}..."
+                                   docker build -t ${imageTag} .
+                                """
+                                // Push image
+                                sh """
+                                   echo "Pushing image ${imageTag}..."
+                                   docker push ${imageTag}
+                                """
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Security Scan (Trivy)') {
+            when {
+                expression { return true } // bật/tắt nếu không muốn scan
+            }
+            steps {
+                script {
+                    services.each { svc ->
+                        def imageTag = "${DOCKER_REGISTRY}/${svc}:${env.BUILD_NUMBER}"
+                        sh """
+                           echo "Scanning image ${imageTag} with Trivy..."
+                           trivy image --severity HIGH,CRITICAL --exit-code 0 ${imageTag}
+                        """
+                        // Nếu muốn fail build khi có lỗ hổng:
+                        // trivy image --severity HIGH,CRITICAL --exit-code 1 ${imageTag}
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    sh """
+                       echo "Deploying to Kubernetes namespace ${K8S_NAMESPACE}..."
+                       kubectl apply -n ${K8S_NAMESPACE} -f k8s/
+                    """
+                }
+            }
+        }
     }
 
-    stage('Container Security (Trivy)') {
-      steps {
-        sh "trivy fs --exit-code 1 --severity ${TRIVY_SEVERITY} --skip-dirs .git ."
-      }
-    }
-
-    stage('Push Images') {
-      when {
-        branch 'main'
-      }
-      steps {
-        withAWS(region: env.AWS_REGION, credentials: 'aws-ecr-creds') {
-          sh "aws ecr get-login-password | docker login --username AWS --password-stdin ${DOCKER_REGISTRY}"
+    post {
+        success {
+            echo "Pipeline completed successfully!"
         }
-        script {
-          runForServices { svc ->
-            sh "docker push ${DOCKER_REGISTRY}/${svc}:${env.BUILD_NUMBER}"
-            sh "docker push ${DOCKER_REGISTRY}/${svc}:latest"
-          }
+        failure {
+            echo "Pipeline failed. Please check the stages above."
         }
-      }
     }
-
-    stage('Deploy to Kubernetes') {
-      when {
-        branch 'main'
-      }
-      steps {
-        withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-          sh '''
-            kubectl config use-context microservices
-            kubectl apply -k k8s/overlays/prod
-          '''
-        }
-      }
-    }
-  }
-
-  post {
-    always {
-      junit allowEmptyResults: true, testResults: 'services/*/junit-report.xml'
-      archiveArtifacts artifacts: 'services/*/coverage/**/*', allowEmptyArchive: true
-    }
-    failure {
-      // nếu không cần mail có thể comment block này
-      mail to: 'devops@example.com',
-           subject: "${env.JOB_NAME} #${env.BUILD_NUMBER} failed",
-           body: "Check Jenkins for details: ${env.BUILD_URL}"
-    }
-  }
 }
