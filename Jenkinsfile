@@ -53,23 +53,25 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            steps {
-                script {
-                    withSonarQubeEnv("${SONARQUBE_ENV}") {
-                        // Dùng sonar-scanner, có thể tinh chỉnh thêm
-                        sh """
-                           sonar-scanner \
-                             -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                             -Dsonar.projectName=${SONAR_PROJECT_NAME} \
-                             -Dsonar.projectVersion=${SONAR_PROJECT_VER} \
-                             -Dsonar.sources=./services \
-                             -Dsonar.host.url=$SONAR_HOST_URL \
-                             -Dsonar.login=$SONAR_AUTH_TOKEN
-                        """
-                    }
-                }
+    steps {
+        script {
+            withSonarQubeEnv('SonarQubeServer') {
+                // Lấy đường dẫn tới sonar-scanner mà Jenkins đã cài
+                def scannerHome = tool 'SonarScanner'
+                sh """
+                   ${scannerHome}/bin/sonar-scanner \
+                     -Dsonar.projectKey=microservices-monorepo \
+                     -Dsonar.projectName=microservices-monorepo \
+                     -Dsonar.projectVersion=1.0 \
+                     -Dsonar.sources=./services \
+                     -Dsonar.host.url=$SONAR_HOST_URL \
+                     -Dsonar.login=$SONAR_AUTH_TOKEN
+                """
             }
         }
+    }
+}
+
 
         stage('Build Docker Images') {
             steps {
