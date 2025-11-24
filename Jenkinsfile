@@ -129,10 +129,11 @@ pipeline {
         stage('Deploy to Kubernetes') {
     steps {
         sh """
-           echo "Deploying to Kubernetes namespace ${K8S_NAMESPACE}..."
+           echo Deploying to Kubernetes namespace ${K8S_NAMESPACE}...
+
            export KUBECONFIG=/var/lib/jenkins/.kube/config
 
-           /usr/bin/kubectl get nodes
+           # GỌI THẲNG /usr/bin/kubectl, không dùng 'kubectl' trần nữa
            /usr/bin/kubectl apply -n ${K8S_NAMESPACE} -f k8s/
         """
     }
