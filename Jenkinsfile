@@ -6,7 +6,6 @@ pipeline {
     environment {
         // Docker registry
         DOCKER_REGISTRY = 'docker.io/quannha5'
-        // DOCKER_CREDENTIAL = 'docker-registry-cred' // không cần nữa nếu dùng withCredentials
 
         // SonarQube
         SONARQUBE_ENV      = 'SonarQubeServer'
@@ -55,7 +54,6 @@ pipeline {
             steps {
                 script {
                     withSonarQubeEnv('SonarQubeServer') {
-                        // Lấy đường dẫn tới sonar-scanner mà Jenkins đã cài
                         def scannerHome = tool 'SonarScanner'
                         sh """
                            ${scannerHome}/bin/sonar-scanner \
@@ -74,19 +72,16 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    // Lấy username/password từ credential docker-registry-cred
                     withCredentials([usernamePassword(
                         credentialsId: 'docker-registry-cred',
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
 
-                        // Debug: in ra user đang login (không in password)
                         sh '''
                            echo "Logging in to Docker as ${DOCKER_USER} ..."
                         '''
 
-                        // Login an toàn bằng --password-stdin
                         sh """
                            echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
                         """
@@ -109,36 +104,34 @@ pipeline {
         }
 
         stage('Security Scan (Trivy)') {
-    steps {
-        script {
-            services.each { svc ->
-                def imageTag = "${DOCKER_REGISTRY}/${svc}:${env.BUILD_NUMBER}"
+            steps {
+                script {
+                    services.each { svc ->
+                        def imageTag = "${DOCKER_REGISTRY}/${svc}:${env.BUILD_NUMBER}"
+                        sh """
+                           echo "Scanning image ${imageTag} with Trivy (Docker)..."
+                           docker run --rm \
+                             -v /var/run/docker.sock:/var/run/docker.sock \
+                             aquasec/trivy:latest \
+                             image --severity HIGH,CRITICAL --exit-code 0 ${imageTag}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
                 sh """
-                   echo "Scanning image ${imageTag} with Trivy (Docker)..."
-                   docker run --rm \
-                     -v /var/run/docker.sock:/var/run/docker.sock \
-                     aquasec/trivy:latest \
-                     image --severity HIGH,CRITICAL --exit-code 0 ${imageTag}
+                   echo Deploying to Kubernetes namespace ${K8S_NAMESPACE}...
+
+                   export KUBECONFIG=/var/lib/jenkins/.kube/config
+
+                   /usr/bin/kubectl apply -n ${K8S_NAMESPACE} -f k8s/
                 """
             }
         }
     }
-}
-
-
-        stage('Deploy to Kubernetes') {
-    steps {
-        sh """
-           echo Deploying to Kubernetes namespace ${K8S_NAMESPACE}...
-
-           export KUBECONFIG=/var/lib/jenkins/.kube/config
-
-           # GỌI THẲNG /usr/bin/kubectl, không dùng 'kubectl' trần nữa
-           /usr/bin/kubectl apply -n ${K8S_NAMESPACE} -f k8s/
-        """
-    }
-}
-
 
     post {
         success {
@@ -148,5 +141,4 @@ pipeline {
             echo "Pipeline failed. Please check the stages above."
         }
     }
-}
 }
