@@ -121,17 +121,17 @@ pipeline {
         }
 
         stage('Deploy to Kubernetes') {
-            steps {
-                sh """
-                   echo Deploying to Kubernetes namespace ${K8S_NAMESPACE}...
+    steps {
+        sh """
+           echo Deploying with Kustomize to namespace ${K8S_NAMESPACE}...
 
-                   export KUBECONFIG=/var/lib/jenkins/.kube/config
+           export KUBECONFIG=/var/lib/jenkins/.kube/config
 
-                   /usr/bin/kubectl apply -n ${K8S_NAMESPACE} -f k8s/
-                """
-            }
-        }
+           # Apply using -k for Kustomize overlays
+           /usr/bin/kubectl apply -n ${K8S_NAMESPACE} -k k8s/overlays/prod
+        """
     }
+}
 
     post {
         success {
