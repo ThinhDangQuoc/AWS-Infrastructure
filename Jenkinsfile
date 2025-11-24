@@ -128,7 +128,7 @@ pipeline {
            export KUBECONFIG=/var/lib/jenkins/.kube/config
 
            # Apply using -k for Kustomize overlays
-           /usr/bin/kubectl apply -n ${K8S_NAMESPACE} -k k8s/overlays/prod --namespace=microservices-prod
+           /usr/bin/kubectl apply -n ${K8S_NAMESPACE} -k k8s/base/ --namespace=microservices
         """
     }
 }
