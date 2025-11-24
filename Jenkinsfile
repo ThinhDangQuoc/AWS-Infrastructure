@@ -109,21 +109,22 @@ pipeline {
         }
 
         stage('Security Scan (Trivy)') {
-            when {
-                expression { return true }
-            }
-            steps {
-                script {
-                    services.each { svc ->
-                        def imageTag = "${DOCKER_REGISTRY}/${svc}:${env.BUILD_NUMBER}"
-                        sh """
-                           echo "Scanning image ${imageTag} with Trivy..."
-                           trivy image --severity HIGH,CRITICAL --exit-code 0 ${imageTag}
-                        """
-                    }
-                }
+    steps {
+        script {
+            services.each { svc ->
+                def imageTag = "${DOCKER_REGISTRY}/${svc}:${env.BUILD_NUMBER}"
+                sh """
+                   echo "Scanning image ${imageTag} with Trivy (Docker)..."
+                   docker run --rm \
+                     -v /var/run/docker.sock:/var/run/docker.sock \
+                     aquasec/trivy:latest \
+                     image --severity HIGH,CRITICAL --exit-code 1 ${imageTag}
+                """
             }
         }
+    }
+}
+
 
         stage('Deploy to Kubernetes') {
             steps {
