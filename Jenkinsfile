@@ -12,9 +12,6 @@ pipeline {
         SONAR_PROJECT_KEY  = 'microservices-monorepo'
         SONAR_PROJECT_NAME = 'microservices-monorepo'
         SONAR_PROJECT_VER  = '1.0'
-
-        // Optional: K8s namespace
-        K8S_NAMESPACE = 'default'
     }
 
     options {
@@ -120,19 +117,44 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
-    steps {
-        sh """
-           echo Deploying with Kustomize to namespace ${K8S_NAMESPACE}...
+        stage('Deploy to Docker') {
+            steps {
+                script {
+                    services.each { svc ->
+                        def imageTag = "${DOCKER_REGISTRY}/${svc}:${env.BUILD_NUMBER}"
 
-           export KUBECONFIG=/var/lib/jenkins/.kube/config
+                        // ⚠️ Chỗ này bạn chỉnh port cho đúng từng service
+                        def portMapping = ""
+                        if (svc == "orders") {
+                            portMapping = "-p 8081:8080"
+                        } else if (svc == "payments") {
+                            portMapping = "-p 8082:8080"
+                        } else if (svc == "users") {
+                            portMapping = "-p 8083:8080"
+                        }
 
-           # Apply using -k for Kustomize overlays
-           /usr/bin/kubectl apply -n ${K8S_NAMESPACE} -k k8s/base/ --namespace=microservices
-        """
+                        sh """
+                           echo "Deploying ${svc} using Docker image ${imageTag}..."
+
+                           # Kéo image (phòng khi deploy trên node khác)
+                           docker pull ${imageTag} || true
+
+                           # Dừng container cũ nếu có
+                           docker stop ${svc} || true
+                           docker rm ${svc} || true
+
+                           # Chạy container mới
+                           docker run -d --name ${svc} \\
+                             --restart=always \\
+                             ${portMapping} \\
+                             ${imageTag}
+                        """
+                    }
+                }
+            }
+        }
     }
-}
-    }
+
     post {
         success {
             echo "Pipeline completed successfully!"
